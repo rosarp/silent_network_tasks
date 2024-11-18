@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./style.css">
+    <script type="module" src="./main.js"></script>
+    <title>Cloud Sync</title>
+</head>
+
+<body>
+    <div x-data="websocketHandler">
+        <!-- websocket connection -->
+        <div id="ws-connection">
+            <input name="channel_id" type="number" x-model="channelId" placeholder="Forum Id" :disabled="connected" />
+            <button @click="connect()" x-text="connectButtonText">Connect</button>
+        </div>
+        <!-- input for new messages, send a message to the backend via websocket -->
+        <div id="messenger" x-show.important="showMessenger" x-transition>
+            <input name="message" x-model="message" placeholder="Send message" />
+            <button @click="sendMessage()">Send</button>
+        </div>
+        <!-- will be appended to #notifications div -->
+        <div>
+            <ul>
+                <template x-for="notification in notifications">
+                    <li x-text="notification"></li>
+                </template>
+            </ul>
+        </div>
+    </div>
+    <script src="https://unpkg.com/alpinejs@3.14.3/dist/cdn.js" defer></script>
+</body>
+
+</html>

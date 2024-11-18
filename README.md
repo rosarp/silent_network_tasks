@@ -1,2 +1,2 @@
 # silent_network_tasks
-Dev &amp; Arch tasks
+Dev and Arch tasks

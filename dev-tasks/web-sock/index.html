@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Websocket Demo</title>
+  </head>
+  <body>
+    <div id="app">
+    <input type="text" id="endpointInput" placeholder="Enter Websocket endpoint" defaultValue="ws://localhost:4010" />
+    <input type="text" id="messageInput" placeholder="Enter message" />
+    <button id="connectButton" onclick="callWsEndpoint()">Send</button>
+    <p id="wsResponseLabel">...</p>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
