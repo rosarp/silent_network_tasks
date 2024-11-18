@@ -1,6 +1,12 @@
 use core::ops::Mul;
-use elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
-use k256::{sha2::Digest, ProjectivePoint, Scalar, Secp256k1};
+use elliptic_curve::{
+    sec1::{FromEncodedPoint, ToEncodedPoint},
+    Curve,
+};
+use k256::{
+    sha2::{Digest, Sha256},
+    ProjectivePoint, Scalar, Secp256k1,
+};
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
@@ -29,7 +35,7 @@ impl DLogProof {
     }
 
     fn _hash_points(sid: &str, pid: i32, points: &[ProjectivePoint]) -> u64 {
-        let mut h = k256::sha2::Sha256::new();
+        let mut h = Sha256::new();
 
         h.update(sid.as_bytes());
         h.update(pid.to_string().as_bytes());
@@ -56,11 +62,9 @@ impl DLogProof {
         };
         let r = crate::generate_random_number();
         let t = base_point.mul(Scalar::from(r));
-        let c = DLogProof::_hash_points(sid, pid, &[base_point, y, t]);
+        let c = Self::_hash_points(sid, pid, &[base_point, y, t]);
 
-        // Calculate s = (r + c * x) % q where q is the curve order
-        let q = Secp256k1::ORDER;
-        let s = (r + c * x) % q.to_u64().unwrap_or_default();
+        let s = r + c * x;
 
         DLogProof::init(t, s)
     }
@@ -92,7 +96,7 @@ impl DLogProof {
     }
 
     fn from_dict(t: Vec<u8>, s: Vec<u8>) -> Self {
-        let t = ProjectivePoint::from_encoded_point(t.as_slice().try_into().unwrap()).unwrap();
+        let t = ProjectivePoint::from_encoded_point(&t.as_slice().try_into().unwrap()).unwrap();
         let s = u64::from_le_bytes(s.as_slice().try_into().unwrap());
         Self::init(t, s)
     }
