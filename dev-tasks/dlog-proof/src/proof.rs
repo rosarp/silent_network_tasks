@@ -1,12 +1,14 @@
 use core::ops::Mul;
 use elliptic_curve::{
+    bigint::{ArrayEncoding, Encoding},
     sec1::{FromEncodedPoint, ToEncodedPoint},
-    PrimeField,
+    Curve, PrimeField,
 };
 use k256::{
     sha2::{Digest, Sha256},
-    FieldBytes, ProjectivePoint, Scalar,
+    FieldBytes, ProjectivePoint, Scalar, Secp256k1, U256,
 };
+use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default)]
@@ -26,6 +28,7 @@ impl DLogProof {
         Self { t, s }
     }
 
+    #[allow(dead_code)]
     fn eq(&self, other: &DLogProof) -> bool {
         let self_dict = self.to_dict();
         let other_dict = other.to_dict();
@@ -57,11 +60,14 @@ impl DLogProof {
         } else {
             ProjectivePoint::GENERATOR
         };
-        let r = crate::generate_random_number();
-        let t = base_point.mul(Scalar::from(r));
+        let r = crate::generate_random_number_r();
+        let t = base_point.mul(r);
         let c = Self::_hash_points(sid, pid, &[base_point, y, t]);
 
-        let s = r + c * x;
+        let q = Secp256k1::ORDER;
+        let rcx: U256 = (r + c * x).into();
+        let s = rcx.checked_rem(&q).unwrap();
+        let s = Scalar::from_repr(s.to_be_byte_array()).unwrap();
 
         DLogProof::init(t, s)
     }
@@ -92,12 +98,14 @@ impl DLogProof {
         }
     }
 
+    #[allow(dead_code)]
     fn from_dict(t: Vec<u8>, s: Vec<u8>) -> Self {
         let t = ProjectivePoint::from_encoded_point(&t.as_slice().try_into().unwrap()).unwrap();
         let s = Scalar::from_repr(*FieldBytes::from_slice(s.as_slice())).unwrap();
         Self::init(t, s)
     }
 
+    #[allow(dead_code)]
     fn to_string(&self) -> String {
         serde_json::to_string(&self.to_dict()).unwrap()
     }
