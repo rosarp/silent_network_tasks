@@ -1,20 +1,18 @@
 use core::ops::Mul;
 use elliptic_curve::{
     sec1::{FromEncodedPoint, ToEncodedPoint},
-    Curve,
+    PrimeField,
 };
 use k256::{
     sha2::{Digest, Sha256},
-    ProjectivePoint, Scalar, Secp256k1,
+    FieldBytes, ProjectivePoint, Scalar,
 };
-use num_bigint::BigUint;
-use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default)]
 pub(crate) struct DLogProof {
     pub t: ProjectivePoint,
-    pub s: u64,
+    pub s: Scalar,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -24,7 +22,7 @@ struct DLogProofSerde {
 }
 
 impl DLogProof {
-    fn init(t: ProjectivePoint, s: u64) -> Self {
+    fn init(t: ProjectivePoint, s: Scalar) -> Self {
         Self { t, s }
     }
 
@@ -34,23 +32,22 @@ impl DLogProof {
         self_dict.t == other_dict.t && self_dict.s == other_dict.s
     }
 
-    fn _hash_points(sid: &str, pid: i32, points: &[ProjectivePoint]) -> u64 {
+    fn _hash_points(sid: &str, pid: Scalar, points: &[ProjectivePoint]) -> Scalar {
         let mut h = Sha256::new();
 
         h.update(sid.as_bytes());
-        h.update(pid.to_string().as_bytes());
+        h.update(pid.to_bytes());
         for point in points {
             h.update(point.to_encoded_point(false).as_bytes());
         }
         let digest = h.finalize();
-        // TODO: Fix unwrap
-        BigUint::from_bytes_be(&digest).to_u64().unwrap_or_default()
+        Scalar::from_repr(digest).unwrap()
     }
 
     pub fn prove(
         sid: &str,
-        pid: i32,
-        x: u64,
+        pid: Scalar,
+        x: Scalar,
         y: ProjectivePoint,
         base_point: Option<ProjectivePoint>,
     ) -> Self {
@@ -72,7 +69,7 @@ impl DLogProof {
     pub fn verify(
         &self,
         sid: &str,
-        pid: i32,
+        pid: Scalar,
         y: ProjectivePoint,
         base_point: Option<ProjectivePoint>,
     ) -> bool {
@@ -83,21 +80,21 @@ impl DLogProof {
         };
         let c = DLogProof::_hash_points(sid, pid, &[base_point, y, self.t]);
         let lhs = base_point.mul(Scalar::from(self.s));
-        // TODO: Fix unwrap
-        let rhs = self.t + (y.mul(Scalar::from(c.to_u64().unwrap_or_default())));
+
+        let rhs = self.t + (y.mul(c));
         lhs == rhs
     }
 
     fn to_dict(&self) -> DLogProofSerde {
         DLogProofSerde {
             t: self.t.to_encoded_point(false).as_bytes().to_vec(),
-            s: self.s.to_string().into_bytes(),
+            s: self.s.to_bytes().to_vec(),
         }
     }
 
     fn from_dict(t: Vec<u8>, s: Vec<u8>) -> Self {
         let t = ProjectivePoint::from_encoded_point(&t.as_slice().try_into().unwrap()).unwrap();
-        let s = u64::from_le_bytes(s.as_slice().try_into().unwrap());
+        let s = Scalar::from_repr(*FieldBytes::from_slice(s.as_slice())).unwrap();
         Self::init(t, s)
     }
 
